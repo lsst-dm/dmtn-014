@@ -445,6 +445,26 @@ The full wrapping code for the ``containers`` module is.
 
 Now let's look at a few interesting things.
 
+Overload resolution
+"""""""""""""""""""
+
+The ``add`` method is overloaded twice with different argument types.
+
+.. code-block:: cpp
+
+    void add(std::shared_ptr<Item> item);
+    void add(basics::WhatsIt const & it);
+
+In order for the compiler to know which one to select,
+for the non-lambda binding of ``add``,
+it is explicitly cast to a function pointer.
+
+.. code-block:: cpp
+
+        .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
+
+When called from Python the two bindings of ``add`` are tried in order.
+
 STL types
 """""""""
 
