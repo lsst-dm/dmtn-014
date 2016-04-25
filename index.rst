@@ -190,7 +190,7 @@ It contains four C++ source files which are to be compiled into three different 
 The current solution does not (yet) wrap ``extensions`` due to time constraints. For the other modules this is the status of the unit tests:
 
 * ``basics``, passes all unit tests except for const correctness;
-* ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented) and "typedef as class attribute" (doesn't work accross modules yet);
+* ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented);
 * ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work for non-const ``shared_ptr``.
 
 Diving in
@@ -426,8 +426,9 @@ The full wrapping code for the ``containers`` module is.
     PYBIND11_PLUGIN(containers) {
         py::module m("containers", "wrapped C++ containers module");
     
-        py::class_<containers::DoodadSet>(m, "DoodadSet")
-            .def(py::init<>())
+        py::class_<containers::DoodadSet> c(m, "DoodadSet");
+    
+        c.def(py::init<>())
             .def("__len__", &containers::DoodadSet::size)
             .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
             .def("add", [](containers::DoodadSet &ds, std::pair<std::string, int> p) { ds.add(basics::WhatsIt{p.first, p.second}) ; })
@@ -435,6 +436,8 @@ The full wrapping code for the ``containers`` module is.
             .def("as_dict", &containers::DoodadSet::as_map)
             .def("as_list", &containers::DoodadSet::as_vector)
             .def("assign", &containers::DoodadSet::assign);
+    
+        c.attr("Item") = py::module::import("challenge.basics").attr("Doodad");
     
         py::class_<containers::DoodadSetIterator>(m, "DoodadSetIterator")
             .def("__iter__", [](containers::DoodadSetIterator &it) -> containers::DoodadSetIterator& { return it; })
@@ -464,6 +467,18 @@ it is explicitly cast to a function pointer.
         .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
 
 When called from Python the two bindings of ``add`` are tried in order.
+
+Class attributes
+""""""""""""""""
+
+The ``.attr`` method can be used at module level to set constants and at class level to set class attributes.
+In this case a class attribute is set for the ``typedef basics::Doodad Item``.
+Because ``Doodad`` is part of the ``challenge.basics`` module in Python we instantiate a new module object with an import.
+When reffering to something in the same module this is not needed and the current module object ``m`` can be used instead.
+
+.. code-block:: cpp
+
+        c.attr("Item") = py::module::import("challenge.basics").attr("Doodad");
 
 STL types
 """""""""
