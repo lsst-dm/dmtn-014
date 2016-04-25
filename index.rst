@@ -216,8 +216,6 @@ The full wrapper of the ``basics`` module (excluding comments) is.
     
     PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
     
-    namespace basics {
-    
     PYBIND11_PLUGIN(basics) {
         py::module m("basics", "wrapped C++ basics module");
     
@@ -244,9 +242,7 @@ The full wrapper of the ``basics`` module (excluding comments) is.
     
         return m.ptr();
     }
-    
-    } // namespace basics
-    
+
 Let's break that down into smaller chunks.
 
 Holder types
@@ -386,6 +382,7 @@ we also have to use a lambda binding
 
 .. code-block:: cpp
 
+            .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
         .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
 
 Even though the clone is not shared we do transfer ownership from the ``unique_ptr`` to a ``shared_ptr`` in the result.
