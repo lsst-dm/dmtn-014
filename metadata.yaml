@@ -13,7 +13,7 @@ serial_number: '014'
 doc_id: 'DMTN-014'
 
 # Title of the document, without the series/serial designation
-doc_title: 'Wrapping C++ with pybind11 (draft)'
+doc_title: 'Wrapping C++ with pybind11'
 
 # Author names, ordered as a list. Each author name should be formatted as 'First Last'
 authors:
