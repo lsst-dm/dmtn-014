@@ -598,32 +598,29 @@ Now we can use the ``pybind11::cast`` function to get a ``shared_ptr<Doodad>`` f
 
 .. code-block:: cpp
 
-        %typemap(in) std::shared_ptr<basics::Doodad> {
-            /* First make a pybind11 object handler around the PyObject *
-             * Then, cast it to a shared_ptr<Doodad> using the pybind11 caster. */
-            pybind11::object p{$input, true};
-            try {
-                std::shared_ptr<basics::Doodad> ptr(p.cast<std::shared_ptr<basics::Doodad>>());
-                $1 = ptr;
-            } catch(...) {
-                return nullptr;
-            }
+    %typemap(in) std::shared_ptr<basics::Doodad> {
+        try {
+            $1 = pybind11::handle($input).cast<std::shared_ptr<basics::Doodad>>();
+        } catch(...) {
+            PyErr_SetString(PyExc_RuntimeError, "cast error");
+            return nullptr;
         }
+    }
 
-Because it is typically not needed by users the cast function in the other direction (from a ``shared_ptr<Doodad>`` to a ``Doodad`` Python type) is not part of the API. But of course it is used internally in pybind11 so we can simply extract it from there.
+
+The inverse operation (returning a new pybind11 wrapped ``Doodad`` instance created from a ``shared_ptr<Doodad>``) can be done with the following.
 
 .. code-block:: cpp
 
-        %typemap(out) std::shared_ptr<basics::Doodad> {
-            /* Use a pybind11 typecaster to create a PyObject from a shared_ptr<Doodad> */
-            pybind11::detail::type_caster<std::shared_ptr<basics::Doodad>> caster;
-            pybind11::handle out = caster.cast($1, pybind11::return_value_policy::take_ownership, pybind11::handle());
+    %typemap(out) std::shared_ptr<basics::Doodad> {
+        try {
+            pybind::object out = pybind11:cast($1);
             $result = out.ptr();
+        } catch (...) {
+            PyErr_SetString(PyExc_RuntimeError, "cast error");
+            return nullptr;
         }
-
-The ``type_caster`` is a template at the hart of pybind11 that maps between types based on the list of registered types (see above) and the deduced types of the template.
-
-Note that we set the return value policy to ``take_ownership``. This causes the pybind11 extension type to reference the existing object and take ownership. Python will call the destructor and delete operator when the reference count reaches zero.
+    }
 
 With these two typemaps, a pybind11 wrapped ``Doodad`` can now be passed to and returned from a SWIG wrapped function.
 
