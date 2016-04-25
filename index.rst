@@ -68,7 +68,7 @@ a basic pybind11 wrapper for this would look like this.
         return m.ptr();
     }
 
-This can then be compiled into a standard (C)Python extension module with the following "setup.py" file.
+This can then be compiled into a standard (C)Python extension module with the following ``setup.py`` file.
 Note that, since pybind11 is just C++11 (or later) any compiler and build system can be used.
 
 .. code-block:: python
@@ -190,7 +190,7 @@ It contains four C++ source files which are to be compiled into three different 
 The current solution does not (yet) wrap ``extensions`` due to time constraints. For the other modules this is the status of the unit tests:
 
 * ``basics``, passes all unit tests except for const correctness;
-* ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented) and "typedef as class attribute" (can't figure out how to do this without Python code, using the C API directly or modifying pybind11 itself);
+* ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented) and "typedef as class attribute" (doesn't work accross modules yet);
 * ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work for non-const ``shared_ptr``.
 
 Diving in
@@ -343,7 +343,7 @@ This is exposed to Python with.
 Which just works because we have changed the holder type for ``Doodad`` to ``shared_ptr<Doodad>`` as discussed above. Great!
 
 But wait, it turns out that the objects returned by this method are modifiable. Bummer :(
-So it turns out that pybind11 strips out const modifiers. This issue was `bugreported <https://github.com/pybind/pybind11/issues/156>`_ but the developer indicated this will not be fixed because the concept of const is quite alien to Python and it would significantly complicate the library to support it.
+Alas pybind11 strips out const modifiers. This issue was `bugreported <https://github.com/pybind/pybind11/issues/156>`_ but the developer indicated this will not be fixed because the concept of const is quite alien to Python and it would significantly complicate the library to support it.
 
 Therefore this solution to the C++/Python bindings challenge does not support constness. Note that the Cython solution also had to have an ugly hack (different types to represent const and non-const objects).
 
@@ -380,7 +380,6 @@ we also have to use a lambda binding
 
 .. code-block:: cpp
 
-            .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
         .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
 
 Even though the clone is not shared we do transfer ownership from the ``unique_ptr`` to a ``shared_ptr`` in the result.
