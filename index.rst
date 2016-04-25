@@ -412,10 +412,7 @@ The full wrapping code for the ``containers`` module is.
     
     class DoodadSetIterator {
     public:
-        DoodadSetIterator(std::vector<std::shared_ptr<basics::Doodad>> &&seq_) : seq{std::move(seq_)} {
-            it = begin(seq);
-            it_end = end(seq);
-        };
+        DoodadSetIterator(DoodadSet::iterator b, DoodadSet::iterator e) : it{b}, it_end{e} {};
     
         std::shared_ptr<basics::Doodad> next() {
             if (it == it_end) {
@@ -426,10 +423,11 @@ The full wrapping code for the ``containers`` module is.
         };
     
     private:
-        std::vector<std::shared_ptr<basics::Doodad>> seq;
-        std::vector<std::shared_ptr<basics::Doodad>>::const_iterator it;
-        std::vector<std::shared_ptr<basics::Doodad>>::const_iterator it_end;
+        DoodadSet::iterator it;
+        DoodadSet::iterator it_end;
     };
+    
+    } // namespace containers
     
     PYBIND11_PLUGIN(containers) {
         py::module m("containers", "wrapped C++ containers module");
@@ -437,22 +435,20 @@ The full wrapping code for the ``containers`` module is.
         py::class_<containers::DoodadSet>(m, "DoodadSet")
             .def(py::init<>())
             .def("__len__", &containers::DoodadSet::size)
-            .def("add", [](containers::DoodadSet &ds, std::shared_ptr<basics::Doodad> &d) { ds.add(d); })
+            .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
             .def("add", [](containers::DoodadSet &ds, std::pair<std::string, int> p) { ds.add(basics::WhatsIt{p.first, p.second}) ; })
-            .def("__iter__", [](containers::DoodadSet &ds) { return DoodadSetIterator{ds.as_vector()}; })
+            .def("__iter__", [](containers::DoodadSet &ds) { return containers::DoodadSetIterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
             .def("as_dict", &containers::DoodadSet::as_map)
             .def("as_list", &containers::DoodadSet::as_vector)
             .def("assign", &containers::DoodadSet::assign);
     
         py::class_<containers::DoodadSetIterator>(m, "DoodadSetIterator")
-            .def("__iter__", [](DoodadSetIterator &it) -> DoodadSetIterator& { return it; })
-            .def("__next__", &DoodadSetIterator::next);
+            .def("__iter__", [](containers::DoodadSetIterator &it) -> containers::DoodadSetIterator& { return it; })
+            .def("__next__", &containers::DoodadSetIterator::next);
     
         return m.ptr();
     }
-    
-    } // namespace containers
-    
+
 Now let's look at a few interesting things.
 
 STL types
@@ -489,9 +485,11 @@ the ``DoodadSet`` wrapper defines the ``__iter__`` special function.
 
 .. code-block:: cpp
 
-        .def("__iter__", [](containers::DoodadSet &ds) { return DoodadSetIterator{ds.as_vector()}; })
+        .def("__iter__", [](containers::DoodadSet &ds) { return containers::DoodadSetIterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
 
 This function returns a ``DoodadSetIterator`` instance which is also created as an extension type.
+In addition it uses the ``keep_alive`` call policy to make sure that the ``DoodadSet`` container
+cannot be destroyed while an iterator pointing to it still exists.
 
 .. code-block:: cpp
 
@@ -505,10 +503,7 @@ The ``DoodadSetIterator`` is implemented as.
 
     class DoodadSetIterator {
     public:
-        DoodadSetIterator(std::vector<std::shared_ptr<basics::Doodad>> &&seq_) : seq{std::move(seq_)} {
-            it = begin(seq);
-            it_end = end(seq);
-        };
+        DoodadSetIterator(DoodadSet::iterator b, DoodadSet::iterator e) : it{b}, it_end{e} {};
     
         std::shared_ptr<basics::Doodad> next() {
             if (it == it_end) {
@@ -519,15 +514,10 @@ The ``DoodadSetIterator`` is implemented as.
         };
     
     private:
-        std::vector<std::shared_ptr<basics::Doodad>> seq;
-        std::vector<std::shared_ptr<basics::Doodad>>::const_iterator it;
-        std::vector<std::shared_ptr<basics::Doodad>>::const_iterator it_end;
+        DoodadSet::iterator it;
+        DoodadSet::iterator it_end;
     };
-
-It is important to note that this object retains its own copy of the underlying ``vector`` stored in ``DoodadSet``.
-This is necessary because the iterator might outlive the instance of ``DoodadSet``.
-A better alternative would be to have the iterator keep a ``shared_ptr`` to the ``DoodadSet``, but to enable this we need to modify the ``DoodadSet`` C++ implementation and have it inherit from ``std::enable_shared_from_this``.
-
+ 
 SWIG interoperability
 ^^^^^^^^^^^^^^^^^^^^^
 
