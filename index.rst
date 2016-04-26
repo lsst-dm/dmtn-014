@@ -175,7 +175,7 @@ Finally a pointer to the module object is returned to the Python interpreter.
 Solving the C++/Python bindings challenge with pybind11
 =======================================================
 
-The previous section gave a quick overview of wrapping a C++ class with . This section describes some of the issues encountered while wrapping the C++/Python bindings challenge code. This code was designed to be more representative of the type of code encountered when porting larger swaths of LSST library code.
+The previous section gave a quick overview of wrapping a C++ class with pybind11. This section describes some of the issues encountered while wrapping the C++/Python bindings challenge code. This code was designed to be more representative of the type of code encountered when porting larger swaths of LSST library code.
 
 It contains four C++ source files which are to be compiled into three different Python modules (with interdependencies).
 
@@ -270,7 +270,7 @@ Two helper functions require wrapping at module level. This is easy with pybind1
         m.def("compare", &basics::compare);
         m.def("adjacent", &basics::adjacent);
 
-In principle methods work exactly the same, except the ``.def`` applies to the class instead.
+In principle methods work exactly the same, except the ``.def`` applies to the module instead.
 
 However, in this challenge there is also a set of methods that take / return a type not exposed to Python (``WhatsIt``).
 
@@ -333,7 +333,7 @@ So in Python the following are now equivalent:
 Const problems
 """"""""""""""
 
-The before mentioned ``get_const()`` static method returns a ``shared_ptr<const Doodad>`` (that can't be modified).
+The aforementioned ``get_const()`` static method returns a ``shared_ptr<const Doodad>`` (that can't be modified).
 This is exposed to Python with.
 
 .. code-block:: cpp
@@ -621,7 +621,7 @@ Because it is typically not needed by users the cast function in the other direc
             $result = out.ptr();
         }
 
-The ``type_caster`` is a template at the hart of pybind11 that maps between types based on the list of registered types (see above) and the deduced types of the template.
+The ``type_caster`` is a template at the heart of pybind11 that maps between types based on the list of registered types (see above) and the deduced types of the template.
 
 Note that we set the return value policy to ``take_ownership``. This causes the pybind11 extension type to reference the existing object and take ownership. Python will call the destructor and delete operator when the reference count reaches zero.
 
