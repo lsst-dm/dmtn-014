@@ -191,7 +191,7 @@ The current solution does not (yet) wrap ``extensions`` due to time constraints.
 
 * ``basics``, passes all unit tests except for const correctness;
 * ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented);
-* ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work for non-const ``shared_ptr``.
+* ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work, but do not preserve const correctness.
 
 Diving in
 ---------
