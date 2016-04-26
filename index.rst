@@ -34,17 +34,17 @@ Given a simple C++ class:
 .. code-block:: cpp
 
     #include <string>
-    
+
     namespace basics {
-    
+
     class Doodad {
     public:
         Doodad(std::string const & name_, int value_) : name{name_}, value{value_} {};
-            
+
         std::string name;
         int value;
     };
-        
+
     } // namespace basics
 
 a basic pybind11 wrapper for this would look like this.
@@ -52,19 +52,19 @@ a basic pybind11 wrapper for this would look like this.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
     #include "basics.h"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_PLUGIN(basics) {
         py::module m("basics", "pybind11 basics module");
-    
+
         py::class_<basics::Doodad>(m, "Doodad")
             .def(py::init<const std::string &, int>())
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value);
-    
+
         return m.ptr();
     }
 
@@ -74,12 +74,12 @@ Note that, since pybind11 is just C++11 (or later) any compiler and build system
 .. code-block:: python
 
     import os, sys
-    
+
     from distutils.core import setup, Extension
     from distutils import sysconfig
-    
+
     cpp_args = ['-std=c++11', '-stdlib=libc++', '-mmacosx-version-min=10.7']
-    
+
     ext_modules = [
         Extension(
     	'basics',
@@ -89,7 +89,7 @@ Note that, since pybind11 is just C++11 (or later) any compiler and build system
     	extra_compile_args = cpp_args,
         ),
     ]
-    
+
     setup(
         name='example',
         version='0.0.1',
@@ -116,20 +116,20 @@ in a single header.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
 Next we include the header file of the to-be-wrapped class (which in this case also includes the class definition,
 but that is of course not necessary one can simply link).
 
 .. code-block:: cpp
 
     #include "basics.h"
-    
+
 All of pybind11 lives in its own namespace.
 
 .. code-block:: cpp
 
     namespace py = pybind11;
-    
+
 The ``PYBIND11_PLUGIN()`` macro creates a function that will be called when an import statement is issued from within Python.
 
 .. code-block:: cpp
@@ -142,7 +142,7 @@ Then a module is created, with a docstring.
 .. code-block:: cpp
 
         py::module m("basics", "pybind11 basics module");
-    
+
 
 Followed by a new extension type (the wrapper for ``Doodad``).
 
@@ -163,7 +163,7 @@ Properties are directly exposed with ease.
 
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value);
-    
+
 Finally a pointer to the module object is returned to the Python interpreter.
 
 .. code-block:: cpp
@@ -207,21 +207,21 @@ The full wrapper of the ``basics`` module (excluding comments) is.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
     #include "basics.hpp"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
-    
+
     PYBIND11_PLUGIN(basics) {
         py::module m("basics", "wrapped C++ basics module");
-    
+
         m.def("compare", &basics::compare);
         m.def("adjacent", &basics::adjacent);
-    
+
         py::class_<basics::Secret>(m, "Secret");
-    
+
         py::class_<basics::Doodad, std::shared_ptr<basics::Doodad>>(m, "Doodad")
             .def(py::init<const std::string &, int>(), py::arg("name"), py::arg("value") = 1)
             .def("__init__",
@@ -232,12 +232,12 @@ The full wrapper of the ``basics`` module (excluding comments) is.
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value)
             .def_static("get_const", &basics::Doodad::get_const)
-    
+
             .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
             .def("get_secret", &basics::Doodad::get_secret, py::return_value_policy::reference_internal)
             .def("write", [](const basics::Doodad &d) { auto tmp = d.write(); return make_pair(tmp.a, tmp.b); })
             .def("read", [](basics::Doodad &d, std::pair<std::string, int> p) { d.read(basics::WhatsIt{p.first, p.second}) ; });
-    
+
         return m.ptr();
     }
 
@@ -358,7 +358,7 @@ Again this is easy with pybind11.
 .. code-block:: cpp
 
         py::class_<basics::Secret>(m, "Secret");
-    
+
 On the C++ side ``Secret`` is a friend class of ``Doodad`` and has no publicly accessible constructors. Instead a reference to a ``Secret`` instance is returned by the ``get_secret()`` method of ``Doodad``. Importantly, the object is *owned* by ``Doodad`` and it remains responsible for destroying the ``Secret`` instance.
 
 This can be communicated to pybind11 by specifying a `return value policy <http://pybind11.readthedocs.org/en/latest/advanced.html#return-value-policies>`_.
@@ -395,19 +395,19 @@ The full wrapping code for the ``containers`` module is.
 
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     #include "basics.hpp"
     #include "containers.hpp"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
-    
+
     PYBIND11_PLUGIN(containers) {
         py::module m("containers", "wrapped C++ containers module");
-    
+
         py::class_<containers::DoodadSet> c(m, "DoodadSet");
-    
+
         c.def(py::init<>())
             .def("__len__", &containers::DoodadSet::size)
             .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
@@ -416,13 +416,13 @@ The full wrapping code for the ``containers`` module is.
             .def("as_dict", &containers::DoodadSet::as_map)
             .def("as_list", &containers::DoodadSet::as_vector)
             .def("assign", &containers::DoodadSet::assign);
-    
+
         c.attr("Item") = py::module::import("challenge.basics").attr("Doodad");
-    
+
         py::class_<containers::DoodadSetIterator>(m, "DoodadSetIterator")
             .def("__iter__", [](containers::DoodadSetIterator &it) -> containers::DoodadSetIterator& { return it; })
             .def("__next__", &containers::DoodadSetIterator::next);
-    
+
         return m.ptr();
     }
 
@@ -500,7 +500,7 @@ This function returns a special Python iterator type that just moves the C++ ite
 In addition it uses the ``keep_alive`` call policy to make sure that the ``DoodadSet`` container
 cannot be destroyed while an iterator pointing to it still exists.
 
- 
+
 SWIG interoperability
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -533,7 +533,7 @@ To get these typemaps to work with the pybind11 wrapped ``Doodad`` we first need
         %{
         #include "basics.hpp"
         #include <pybind11/pybind11.h>
-        
+
         /* Needed for casting to work with shared_ptr<Doodad> */
         PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
         %}
