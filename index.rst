@@ -589,91 +589,75 @@ The whole solution is build with.
 .. code-block:: python
 
     import os, sys
-    
-    from distutils.core import setup, Extension
+    from pip import locations
+    from setuptools import setup, Extension
     from distutils import sysconfig
-    
-    cpp_args = ['-std=c++11', '-stdlib=libc++', '-mmacosx-version-min=10.7']
-    
+
+    # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
+    import distutils.sysconfig
+    cfg_vars = distutils.sysconfig.get_config_vars()
+    for key, value in cfg_vars.items():
+        if type(value) == str:
+            cfg_vars[key] = value.replace("-Wstrict-prototypes", "")
+
+    kwds = dict(
+        extra_compile_args=['-std=c++11'],
+        include_dirs=[
+            os.path.join('..', 'include'),
+            os.path.join('include'),
+            os.path.dirname(locations.distutils_scheme('pybind11')['headers'])
+        ],
+    )
+
     if sys.platform == 'darwin':
-        vars = sysconfig.get_config_vars()
-        vars['LDSHARED'] = vars['LDSHARED'].replace('-bundle', '-dynamiclib')
-    
+        kwds["extra_compile_args"].append('-mmacosx-version-min=10.7')
+        kwds["extra_compile_args"].append('-stdlib=libc++')
+
+
     ext_modules = [
         Extension(
-    	'libbasics',
-            ['src/basics.cpp'],
-            include_dirs=['include'],
-    	language='c++',
-    	extra_compile_args = cpp_args,
-        ),
-        Extension(
-    	'libcontainers',
-            ['src/containers.cpp'],
-            include_dirs=['include'],
-    	language='c++',
-    	extra_compile_args = cpp_args,
-        ),
-        Extension(
             'challenge.basics',
-            ['challenge/basics.cpp'],
-            include_dirs=['pybind11/include', 'include'],
-            language='c++',
-            library_dirs=['.'],
-            libraries=['basics'],
-    	extra_compile_args = cpp_args,
+            sources=[
+                os.path.join('challenge', 'basics.cpp'),
+                os.path.join('..', 'src', 'basics.cpp')
+            ],
+            **kwds
         ),
         Extension(
             'challenge.containers',
-            ['challenge/containers.cpp'],
-            include_dirs=['pybind11/include', 'include'],
-            language='c++',
-            library_dirs=['.'],
-            libraries=['basics','containers'],
-    	extra_compile_args = cpp_args,
+            sources=[
+                os.path.join('challenge', 'containers.cpp'),
+                os.path.join('..', 'src', 'containers.cpp')
+            ],
+            **kwds
         ),
         Extension(
-            'challenge.converters',
-            ['challenge/converters.i'],
-            include_dirs=['pybind11/include', 'include', 'challenge/include'],
+            'challenge.converters', ['challenge/converters.i'],
             swig_opts=["-modern", "-c++", "-Ichallenge/include", "-noproxy"],
-            library_dirs=['.'],
-            libraries=['basics'],
-            extra_compile_args=cpp_args,
+            **kwds
         ),
     ]
-    
+
     setup(
         name='challenge',
         version='0.0.1',
         author='Pim Schellart',
         author_email='P.Schellart@princeton.edu',
+        test_suite="tests",
         description='Solution to the Python C++ bindings challenge with pybind11.',
         ext_modules=ext_modules,
     )
 
-As can be seen, the C++ code to be wrapped is first built into shared libraries.
+Because we've just linked the object files associated with the original pure C++ code into the Python modules themselves, we need to set the RTLD_GLOBAL flag on the Python dynamic linker, just as we have always done with Swig.  If we built separate libraries for the pure C++ code, that might not be necessary.
 
-Unfortunately, distutils (and setuptools) doesn't seem to allow distinguishing between
-extension modules and standard, Python independent, libraries.
-This is a problem on OSX, because (unlike Linux) it has a separate concept of bundles (i.e. ``.bundle`` or often ``.so``) and dynamic libraries (i.e. ``.dylib`` sometimes also ``.so``).
-Bundles are to be used as plug-ins for running programs which is why Python extension types are by default built as such.
-But one cannot dynamically link against a bundle in the normal way.
-And yet, this is required for using the same C++ across different pybind11 extension modules.
-Therefore, the only way to get this to work is to build all extension modules as dynamic libraries instead.
-
-.. code-block:: python
-
-    if sys.platform == 'darwin':
-        vars = sysconfig.get_config_vars()
-        vars['LDSHARED'] = vars['LDSHARED'].replace('-bundle', '-dynamiclib')
-
-Once again this shows that distutils / setuptools is not a good build system for C/C++...
+The pybind11 documentation strongly recommends building with C++14 to generate smaller binaries, but it works fine with C++11 (which is all gcc 4.8 supports).
 
 On symbol visibility
 """"""""""""""""""""
 
 As an interesting side-note, when using cross module types with pybind11 it is also important to set the symbol visibility to ``default`` (as opposed to ``hidden``). This can be done with the compiler option ``-fvisibility=default`` but typically isn't necessary (since it is the default), but some examples of pybind11 online explicitly set visibility to ``hidden`` (to get smaller binaries) which creates problems when using cross-module types.
+
+We might be able to address this by adding visibility hints to our C++ code itself, rather than using compiler options to set visibility at the scale of a full source file.
 
 See also
 ========
