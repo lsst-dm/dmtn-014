@@ -290,6 +290,8 @@ The wrapper should transform these from / to a Python ``tuple``. Adding methods 
 The first argument to the lambda is always a reference to the instance (i.e. ``self`` in Python).
 Furthermore pybind11 automatically maps a two element Python ``tuple`` to a ``std::pair`` which means that we can stick to nice and standard C++ on this side of the fence.
 
+Ideally, we'd like to provide custom converters for a type like ``WhatsIt`` that are automatically used whenever it is encountered in a function signature (like Swig's typemaps).  This is unquestionably possible with pybind11 (we can see the feature being used in how it handles STL types), but we have not fully investigated whether this feature has a documented public interface.
+
 Constructors
 """"""""""""
 
