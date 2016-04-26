@@ -378,14 +378,13 @@ For the C++ method ``clone``
 
     virtual std::unique_ptr<Doodad> clone() const;
 
-we also have to use a lambda binding
+pybind11 allows this to be wrapped directly as you'd expect, even though the holder type is ``shared_ptr``, not ``unique_ptr``:
 
 .. code-block:: cpp
 
-        .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
+        .def("clone", &basics::Doodad::clone)
 
-Even though the clone is not shared we do transfer ownership from the ``unique_ptr`` to a ``shared_ptr`` in the result.
-The reason for this, as before mentioned, is that currently the Python extension type ``Doodad`` is backed by a ``shared_ptr<Doodad>`` and a type can only be associated with one kind or smart pointer (in other words it simply doesn't know what to do with a ``unique_ptr<Doodad>`` as a return value because no Python type is associated with it).
+This simply constructs a ``shared_ptr`` from a ``unique_ptr``, so the opposite would not work.
 
 Containers
 ^^^^^^^^^^
