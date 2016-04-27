@@ -1,7 +1,7 @@
 :tocdepth: 1
 
 All LSST code currently uses `SWIG <http://www.SWIG.org>`_ to generate Python wrappers around C++ code. This document investigates using `pybind11 <http://pybind11.readthedocs.org/en/latest/index.html>`_ as an alternative.
-To start the investigation Jim Bosch has written a `C++/Python Bindings Challenge <https://github.com/TallJimbo/python-cpp-challenge>`_. 
+To start the investigation Jim Bosch has written a `C++/Python Bindings Challenge <https://github.com/lsst-dm/python-cpp-challenge>`_.
 It consists of "a small suite of C++ classes designed to highlight any of the most common challenges involved in providing Python bindings ot a C++ library, as well as a set of Python unit tests that attempt to measure the quality of the resulting bindings".
 Concretely, this document then describes the (partial) pybind11 solution to this challenge.
 
@@ -34,17 +34,17 @@ Given a simple C++ class:
 .. code-block:: cpp
 
     #include <string>
-    
+
     namespace basics {
-    
+
     class Doodad {
     public:
         Doodad(std::string const & name_, int value_) : name{name_}, value{value_} {};
-            
+
         std::string name;
         int value;
     };
-        
+
     } // namespace basics
 
 a basic pybind11 wrapper for this would look like this.
@@ -52,19 +52,19 @@ a basic pybind11 wrapper for this would look like this.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
     #include "basics.h"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_PLUGIN(basics) {
         py::module m("basics", "pybind11 basics module");
-    
+
         py::class_<basics::Doodad>(m, "Doodad")
             .def(py::init<const std::string &, int>())
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value);
-    
+
         return m.ptr();
     }
 
@@ -74,12 +74,12 @@ Note that, since pybind11 is just C++11 (or later) any compiler and build system
 .. code-block:: python
 
     import os, sys
-    
+
     from distutils.core import setup, Extension
     from distutils import sysconfig
-    
+
     cpp_args = ['-std=c++11', '-stdlib=libc++', '-mmacosx-version-min=10.7']
-    
+
     ext_modules = [
         Extension(
     	'basics',
@@ -89,7 +89,7 @@ Note that, since pybind11 is just C++11 (or later) any compiler and build system
     	extra_compile_args = cpp_args,
         ),
     ]
-    
+
     setup(
         name='example',
         version='0.0.1',
@@ -116,20 +116,20 @@ in a single header.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
 Next we include the header file of the to-be-wrapped class (which in this case also includes the class definition,
 but that is of course not necessary one can simply link).
 
 .. code-block:: cpp
 
     #include "basics.h"
-    
+
 All of pybind11 lives in its own namespace.
 
 .. code-block:: cpp
 
     namespace py = pybind11;
-    
+
 The ``PYBIND11_PLUGIN()`` macro creates a function that will be called when an import statement is issued from within Python.
 
 .. code-block:: cpp
@@ -142,7 +142,7 @@ Then a module is created, with a docstring.
 .. code-block:: cpp
 
         py::module m("basics", "pybind11 basics module");
-    
+
 
 Followed by a new extension type (the wrapper for ``Doodad``).
 
@@ -163,7 +163,7 @@ Properties are directly exposed with ease.
 
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value);
-    
+
 Finally a pointer to the module object is returned to the Python interpreter.
 
 .. code-block:: cpp
@@ -175,7 +175,7 @@ Finally a pointer to the module object is returned to the Python interpreter.
 Solving the C++/Python bindings challenge with pybind11
 =======================================================
 
-The previous section gave a quick overview of wrapping a C++ class with . This section describes some of the issues encountered while wrapping the C++/Python bindings challenge code. This code was designed to be more representative of the type of code encountered when porting larger swaths of LSST library code.
+The previous section gave a quick overview of wrapping a C++ class with pybind11. This section describes some of the issues encountered while wrapping the C++/Python bindings challenge code. This code was designed to be more representative of the type of code encountered when porting larger swaths of LSST library code.
 
 It contains four C++ source files which are to be compiled into three different Python modules (with interdependencies).
 
@@ -191,7 +191,7 @@ The current solution does not (yet) wrap ``extensions`` due to time constraints.
 
 * ``basics``, passes all unit tests except for const correctness;
 * ``containers``, passes all unit tests except for inheritance (because ``extensions`` is not implemented);
-* ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work for non-const ``shared_ptr``.
+* ``converters``, SWIG -> pybind11 and pybind11 -> SWIG work, but do not preserve const correctness.
 
 Diving in
 ---------
@@ -207,21 +207,21 @@ The full wrapper of the ``basics`` module (excluding comments) is.
 .. code-block:: cpp
 
     #include <pybind11/pybind11.h>
-    
+
     #include "basics.hpp"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
-    
+
     PYBIND11_PLUGIN(basics) {
         py::module m("basics", "wrapped C++ basics module");
-    
+
         m.def("compare", &basics::compare);
         m.def("adjacent", &basics::adjacent);
-    
+
         py::class_<basics::Secret>(m, "Secret");
-    
+
         py::class_<basics::Doodad, std::shared_ptr<basics::Doodad>>(m, "Doodad")
             .def(py::init<const std::string &, int>(), py::arg("name"), py::arg("value") = 1)
             .def("__init__",
@@ -232,12 +232,12 @@ The full wrapper of the ``basics`` module (excluding comments) is.
             .def_readwrite("name", &basics::Doodad::name)
             .def_readwrite("value", &basics::Doodad::value)
             .def_static("get_const", &basics::Doodad::get_const)
-    
+
             .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
             .def("get_secret", &basics::Doodad::get_secret, py::return_value_policy::reference_internal)
             .def("write", [](const basics::Doodad &d) { auto tmp = d.write(); return make_pair(tmp.a, tmp.b); })
             .def("read", [](basics::Doodad &d, std::pair<std::string, int> p) { d.read(basics::WhatsIt{p.first, p.second}) ; });
-    
+
         return m.ptr();
     }
 
@@ -270,7 +270,7 @@ Two helper functions require wrapping at module level. This is easy with pybind1
         m.def("compare", &basics::compare);
         m.def("adjacent", &basics::adjacent);
 
-In principle methods work exactly the same, except the ``.def`` applies to the class instead.
+In principle methods work exactly the same, except the ``.def`` applies to the module instead.
 
 However, in this challenge there is also a set of methods that take / return a type not exposed to Python (``WhatsIt``).
 
@@ -289,6 +289,8 @@ The wrapper should transform these from / to a Python ``tuple``. Adding methods 
 
 The first argument to the lambda is always a reference to the instance (i.e. ``self`` in Python).
 Furthermore pybind11 automatically maps a two element Python ``tuple`` to a ``std::pair`` which means that we can stick to nice and standard C++ on this side of the fence.
+
+Ideally, we'd like to provide custom converters for a type like ``WhatsIt`` that are automatically used whenever it is encountered in a function signature (like Swig's typemaps).  This is unquestionably possible with pybind11 (we can see the feature being used in how it handles STL types), but we have not fully investigated whether this feature has a documented public interface.
 
 Constructors
 """"""""""""
@@ -333,7 +335,7 @@ So in Python the following are now equivalent:
 Const problems
 """"""""""""""
 
-The before mentioned ``get_const()`` static method returns a ``shared_ptr<const Doodad>`` (that can't be modified).
+The aforementioned ``get_const()`` static method returns a ``shared_ptr<const Doodad>`` (that can't be modified).
 This is exposed to Python with.
 
 .. code-block:: cpp
@@ -356,7 +358,7 @@ Again this is easy with pybind11.
 .. code-block:: cpp
 
         py::class_<basics::Secret>(m, "Secret");
-    
+
 On the C++ side ``Secret`` is a friend class of ``Doodad`` and has no publicly accessible constructors. Instead a reference to a ``Secret`` instance is returned by the ``get_secret()`` method of ``Doodad``. Importantly, the object is *owned* by ``Doodad`` and it remains responsible for destroying the ``Secret`` instance.
 
 This can be communicated to pybind11 by specifying a `return value policy <http://pybind11.readthedocs.org/en/latest/advanced.html#return-value-policies>`_.
@@ -376,14 +378,13 @@ For the C++ method ``clone``
 
     virtual std::unique_ptr<Doodad> clone() const;
 
-we also have to use a lambda binding
+pybind11 allows this to be wrapped directly as you'd expect, even though the holder type is ``shared_ptr``, not ``unique_ptr``:
 
 .. code-block:: cpp
 
-        .def("clone", [](const basics::Doodad &d) { return std::shared_ptr<basics::Doodad>(d.clone()); })
+        .def("clone", &basics::Doodad::clone)
 
-Even though the clone is not shared we do transfer ownership from the ``unique_ptr`` to a ``shared_ptr`` in the result.
-The reason for this, as before mentioned, is that currently the Python extension type ``Doodad`` is backed by a ``shared_ptr<Doodad>`` and a type can only be associated with one kind or smart pointer (in other words it simply doesn't know what to do with a ``unique_ptr<Doodad>`` as a return value because no Python type is associated with it).
+This simply constructs a ``shared_ptr`` from a ``unique_ptr``, so the opposite would not work.
 
 Containers
 ^^^^^^^^^^
@@ -394,55 +395,34 @@ The full wrapping code for the ``containers`` module is.
 
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     #include "basics.hpp"
     #include "containers.hpp"
-    
+
     namespace py = pybind11;
-    
+
     PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
-    
-    namespace containers {
-    
-    class DoodadSetIterator {
-    public:
-        DoodadSetIterator(DoodadSet::iterator b, DoodadSet::iterator e) : it{b}, it_end{e} {};
-    
-        std::shared_ptr<basics::Doodad> next() {
-            if (it == it_end) {
-                throw py::stop_iteration();
-            } else {
-                return *it++;
-            }
-        };
-    
-    private:
-        DoodadSet::iterator it;
-        DoodadSet::iterator it_end;
-    };
-    
-    } // namespace containers
-    
+
     PYBIND11_PLUGIN(containers) {
         py::module m("containers", "wrapped C++ containers module");
-    
+
         py::class_<containers::DoodadSet> c(m, "DoodadSet");
-    
+
         c.def(py::init<>())
             .def("__len__", &containers::DoodadSet::size)
             .def("add", (void (containers::DoodadSet::*)(std::shared_ptr<basics::Doodad>)) &containers::DoodadSet::add)
             .def("add", [](containers::DoodadSet &ds, std::pair<std::string, int> p) { ds.add(basics::WhatsIt{p.first, p.second}) ; })
-            .def("__iter__", [](containers::DoodadSet &ds) { return containers::DoodadSetIterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
+            .def("__iter__", [](containers::DoodadSet &ds) { return py::make_iterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
             .def("as_dict", &containers::DoodadSet::as_map)
             .def("as_list", &containers::DoodadSet::as_vector)
             .def("assign", &containers::DoodadSet::assign);
-    
+
         c.attr("Item") = py::module::import("challenge.basics").attr("Doodad");
-    
+
         py::class_<containers::DoodadSetIterator>(m, "DoodadSetIterator")
             .def("__iter__", [](containers::DoodadSetIterator &it) -> containers::DoodadSetIterator& { return it; })
             .def("__next__", &containers::DoodadSetIterator::next);
-    
+
         return m.ptr();
     }
 
@@ -514,39 +494,13 @@ the ``DoodadSet`` wrapper defines the ``__iter__`` special function.
 
 .. code-block:: cpp
 
-        .def("__iter__", [](containers::DoodadSet &ds) { return containers::DoodadSetIterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
+        .def("__iter__", [](containers::DoodadSet &ds) { return py::make_iterator{ds.begin(), ds.end()}; }, py::keep_alive<0,1>())
 
-This function returns a ``DoodadSetIterator`` instance which is also created as an extension type.
+This function returns a special Python iterator type that just moves the C++ iterators it holds.
 In addition it uses the ``keep_alive`` call policy to make sure that the ``DoodadSet`` container
 cannot be destroyed while an iterator pointing to it still exists.
 
-.. code-block:: cpp
 
-        py::class_<containers::DoodadSetIterator>(m, "DoodadSetIterator")
-            .def("__iter__", [](DoodadSetIterator &it) -> DoodadSetIterator& { return it; })
-            .def("__next__", &DoodadSetIterator::next);
-
-The ``DoodadSetIterator`` is implemented as.
-
-.. code-block:: cpp
-
-    class DoodadSetIterator {
-    public:
-        DoodadSetIterator(DoodadSet::iterator b, DoodadSet::iterator e) : it{b}, it_end{e} {};
-    
-        std::shared_ptr<basics::Doodad> next() {
-            if (it == it_end) {
-                throw py::stop_iteration();
-            } else {
-                return *it++;
-            }
-        };
-    
-    private:
-        DoodadSet::iterator it;
-        DoodadSet::iterator it_end;
-    };
- 
 SWIG interoperability
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -579,7 +533,7 @@ To get these typemaps to work with the pybind11 wrapped ``Doodad`` we first need
         %{
         #include "basics.hpp"
         #include <pybind11/pybind11.h>
-        
+
         /* Needed for casting to work with shared_ptr<Doodad> */
         PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
         %}
@@ -621,7 +575,7 @@ Because it is typically not needed by users the cast function in the other direc
             $result = out.ptr();
         }
 
-The ``type_caster`` is a template at the hart of pybind11 that maps between types based on the list of registered types (see above) and the deduced types of the template.
+The ``type_caster`` is a template at the heart of pybind11 that maps between types based on the list of registered types (see above) and the deduced types of the template.
 
 Note that we set the return value policy to ``take_ownership``. This causes the pybind11 extension type to reference the existing object and take ownership. Python will call the destructor and delete operator when the reference count reaches zero.
 
@@ -635,91 +589,75 @@ The whole solution is build with.
 .. code-block:: python
 
     import os, sys
-    
-    from distutils.core import setup, Extension
+    from pip import locations
+    from setuptools import setup, Extension
     from distutils import sysconfig
-    
-    cpp_args = ['-std=c++11', '-stdlib=libc++', '-mmacosx-version-min=10.7']
-    
+
+    # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
+    import distutils.sysconfig
+    cfg_vars = distutils.sysconfig.get_config_vars()
+    for key, value in cfg_vars.items():
+        if type(value) == str:
+            cfg_vars[key] = value.replace("-Wstrict-prototypes", "")
+
+    kwds = dict(
+        extra_compile_args=['-std=c++11'],
+        include_dirs=[
+            os.path.join('..', 'include'),
+            os.path.join('include'),
+            os.path.dirname(locations.distutils_scheme('pybind11')['headers'])
+        ],
+    )
+
     if sys.platform == 'darwin':
-        vars = sysconfig.get_config_vars()
-        vars['LDSHARED'] = vars['LDSHARED'].replace('-bundle', '-dynamiclib')
-    
+        kwds["extra_compile_args"].append('-mmacosx-version-min=10.7')
+        kwds["extra_compile_args"].append('-stdlib=libc++')
+
+
     ext_modules = [
         Extension(
-    	'libbasics',
-            ['src/basics.cpp'],
-            include_dirs=['include'],
-    	language='c++',
-    	extra_compile_args = cpp_args,
-        ),
-        Extension(
-    	'libcontainers',
-            ['src/containers.cpp'],
-            include_dirs=['include'],
-    	language='c++',
-    	extra_compile_args = cpp_args,
-        ),
-        Extension(
             'challenge.basics',
-            ['challenge/basics.cpp'],
-            include_dirs=['pybind11/include', 'include'],
-            language='c++',
-            library_dirs=['.'],
-            libraries=['basics'],
-    	extra_compile_args = cpp_args,
+            sources=[
+                os.path.join('challenge', 'basics.cpp'),
+                os.path.join('..', 'src', 'basics.cpp')
+            ],
+            **kwds
         ),
         Extension(
             'challenge.containers',
-            ['challenge/containers.cpp'],
-            include_dirs=['pybind11/include', 'include'],
-            language='c++',
-            library_dirs=['.'],
-            libraries=['basics','containers'],
-    	extra_compile_args = cpp_args,
+            sources=[
+                os.path.join('challenge', 'containers.cpp'),
+                os.path.join('..', 'src', 'containers.cpp')
+            ],
+            **kwds
         ),
         Extension(
-            'challenge.converters',
-            ['challenge/converters.i'],
-            include_dirs=['pybind11/include', 'include', 'challenge/include'],
+            'challenge.converters', ['challenge/converters.i'],
             swig_opts=["-modern", "-c++", "-Ichallenge/include", "-noproxy"],
-            library_dirs=['.'],
-            libraries=['basics'],
-            extra_compile_args=cpp_args,
+            **kwds
         ),
     ]
-    
+
     setup(
         name='challenge',
         version='0.0.1',
         author='Pim Schellart',
         author_email='P.Schellart@princeton.edu',
+        test_suite="tests",
         description='Solution to the Python C++ bindings challenge with pybind11.',
         ext_modules=ext_modules,
     )
 
-As can be seen, the C++ code to be wrapped is first built into shared libraries.
+Because we've just linked the object files associated with the original pure C++ code into the Python modules themselves, we need to set the RTLD_GLOBAL flag on the Python dynamic linker, just as we have always done with Swig.  If we built separate libraries for the pure C++ code, that might not be necessary.
 
-Unfortunately, distutils (and setuptools) doesn't seem to allow distinguishing between
-extension modules and standard, Python independent, libraries.
-This is a problem on OSX, because (unlike Linux) it has a separate concept of bundles (i.e. ``.bundle`` or often ``.so``) and dynamic libraries (i.e. ``.dylib`` sometimes also ``.so``).
-Bundles are to be used as plug-ins for running programs which is why Python extension types are by default built as such.
-But one cannot dynamically link against a bundle in the normal way.
-And yet, this is required for using the same C++ across different pybind11 extension modules.
-Therefore, the only way to get this to work is to build all extension modules as dynamic libraries instead.
-
-.. code-block:: python
-
-    if sys.platform == 'darwin':
-        vars = sysconfig.get_config_vars()
-        vars['LDSHARED'] = vars['LDSHARED'].replace('-bundle', '-dynamiclib')
-
-Once again this shows that distutils / setuptools is not a good build system for C/C++...
+The pybind11 documentation strongly recommends building with C++14 to generate smaller binaries, but it works fine with C++11 (which is all gcc 4.8 supports).
 
 On symbol visibility
 """"""""""""""""""""
 
 As an interesting side-note, when using cross module types with pybind11 it is also important to set the symbol visibility to ``default`` (as opposed to ``hidden``). This can be done with the compiler option ``-fvisibility=default`` but typically isn't necessary (since it is the default), but some examples of pybind11 online explicitly set visibility to ``hidden`` (to get smaller binaries) which creates problems when using cross-module types.
+
+We might be able to address this by adding visibility hints to our C++ code itself, rather than using compiler options to set visibility at the scale of a full source file.
 
 See also
 ========
