@@ -1,5 +1,9 @@
 :tocdepth: 1
 
+.. warning::
+
+    This document has been superseded by the pybind11 information in the `LSST DM Developer Guide <https://developer.lsst.io>`_.
+
 All LSST code currently uses `SWIG <http://www.SWIG.org>`_ to generate Python wrappers around C++ code. This document investigates using `pybind11 <http://pybind11.readthedocs.org/en/latest/index.html>`_ as an alternative.
 To start the investigation Jim Bosch has written a `C++/Python Bindings Challenge <https://github.com/lsst-dm/python-cpp-challenge>`_.
 It consists of "a small suite of C++ classes designed to highlight any of the most common challenges involved in providing Python bindings ot a C++ library, as well as a set of Python unit tests that attempt to measure the quality of the resulting bindings".
