@@ -1,8 +1,20 @@
 sudo: false
 language: python
-python:
-      - 3.4
-install: "pip install -r requirements.txt"
-script: "make html"
-notifications:
-      email: false
+matrix:
+  include:
+    - python: "3.5"
+      env: LTD_MASON_BUILD=true
+install:
+  - pip install -r requirements.txt
+  - pip install "ltd-mason>=0.2,<0.3"
+script:
+  - sphinx-build -b html -a -n -d _build/doctree . _build/html
+after_success:
+  - ltd-mason-travis --html-dir _build/html
+env:
+  global:
+    - LTD_MASON_BUILD=false  # disable builds in regular text matrix
+    - LTD_MASON_PRODUCT="dmtn-014"
+    # Add AWS and LTD Keeper credentials as encrypted secrets here
+    - secure: "ZOtamgSP8jWFyOYyWOKRtQ2IMKf7S+rQWfN9kgOjftUcwocdzogayH3WBBNmTcy3vH4WejP1DmgVjixbHY9g0aHrOMFryaQwaZAjf+LfYQl7mSp4spP80uK0i/CmIV6jCACRNniWkzJYaEQzEnNDDS2k5vmbbTauSH47tzh2SbPKLC4rWorgwIiS2e6v7N6JPHtbAavt7+m17NB2BzFKqoKqYDXuRNb5pxfeEYPZB4e0H3Q3+aO2xBTLa+n51SiMeWlKqvVklIHqvlz4gKLjAef7wQsPdGBsDDy/RDGpyzJD5ji1bz7Ckwpw3mKLCp1+cbxmUNuPFPv3FgJobnsmiO2qa3Npd623EGa9xnoqSE9sQoXNNx6wKJV/tGEv8YepJzQ09RiiuG7DV5S2Q8icYjJj5BEV85fILEsZ3+YX9hlrtSym2yp/fNOZUNIwR9jEByb42DyzDrDRw7X+q+0rI9Kh5m/JkG4xDts2T+61QXLjgXJj/FE0+hgADNF+OmvOFM9PY39r+nM1YjXC1eCDQ7sfqSKRrj7/a23jEFrptdw4PpWl93KIpj9Fh3Ciy5iD2Jt84TO4i2H5gMU2l1OgXg61+00AmFdqR2EcFDADVkecf/kavCnVrfC9ev33vyzzkXoAO1n/+qA1W6qwXl8DQ7MYNfZPQFtccVicRoJxCZ8="
+    - secure: "W5d60a9ZDj00m4G/yXx/PlvadQliOm3Ep0Z2w1u8mykdmU4FZPz/+pwSiPFem+4HZNEx+w7PSlR5/+5ksi+nsd36avcW5dDc/gMR4W+iVGVhqC2wO5imv9nZSGH6V+R/FVY3iLNna9sMvCeCYd0hnIG6Yl3Lq7RVKq0Ydoi28qCUIpETw4w22IDV8mEkn/NFKWsNIQtribOFJFUz0Z2aywpfKB8fT91brrBFo6U8BWFEmVksNmqRmB80oAABchQwTX4X93DltmyoPRAc+EjXNiXb51IzDte5q1KO8OJ6qAksDLUQBhhrvzDXqTgbhrj5oExXc2Lip9+5+XZt2Bl/gfHlGcOILdOakneU3RNXZ7sIqaF2LoGXwLSjdt45mm36Cj2sJDD8F/pc+PcBuZ61ndbrh3UOB04IStrLwSGwrZT+LiEsit9ReDHnSsXpa2jEoSYc1LWmyfl/wvlohV08X7vm3XdUBg+s8w+VJActL9/jK0+DHSW+WJhSWRjaG0VYujwcKt8wVEPVLA4ITy51g+adMmTog0tXFzfOCr1IdBM8ApHbAVygNtY3vZl5ql8V0phIYQVJItUxsk8S5PRe74HJQhvQq/OD8WOqUqp0fpzQtxuE6SZgdKZrQ3zhnhPb8dKiI//yy4PUBDXvYuPw4giRCwYNxvDbRkoLrGQsvYo="
